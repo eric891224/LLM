@@ -448,8 +448,9 @@ def getModelandTokenizeer(
     dtype: torch.dtype,
     model_version: str,
 ):
-    model_name = os.path.basename(model_path)
+    model_name = os.path.basename(os.path.normpath(model_path))
     model_path = Path(model_path)
+
     if not model_path.exists() and local_rank == 0:
         model_path.mkdir(parents=True)
         if model_name in [
