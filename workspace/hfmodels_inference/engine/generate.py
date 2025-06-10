@@ -116,9 +116,13 @@ def measure_generate(
         # )
         for _ in range(max_new_tokens):
             outputs = model(**inputs, past_key_values=past_key_values, use_cache=True)
-            if _ == 0:
+            isPrefill = _ == 0
+            if isPrefill:
                 dist.barrier()
                 t1 = time.time()
+
+            model.timer.flush_buffer(isPrefill)
+            
             next_token_ids = sample(
                 outputs.logits[:, -1:], temperature=temperature, top_p=top_p
             )

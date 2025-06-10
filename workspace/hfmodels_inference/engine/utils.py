@@ -480,7 +480,8 @@ def getModelandTokenizeer(
     elif model_name == "DeepSeek-R1":
         from engine.deepseekv3.transformer import Transformer
     elif model_name == "Mixtral-8x7B-Instruct-v0.1":
-        from engine.mixtral8x7Binstruct.transformer import Transformer
+        # from engine.mixtral8x7Binstruct.transformer import Transformer
+        from engine.mixtral8x7Binstruct.transformer_with_event_timer import Transformer
 
         tokenizer.pad_token = tokenizer.eos_token
     elif model_name in ["Qwen1.5-MoE-A2.7B-Chat", "Qwen2-57B-A14B-Instruct"]:

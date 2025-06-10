@@ -139,6 +139,7 @@ def run(
                     eos_id=model.generation_config.eos_token_id,
                 )
         dist.barrier()
+        model.timer.reset()
 
         prefill_ts, decode_ts, prefill_tokens, decode_tokens = (
             [],
@@ -182,6 +183,17 @@ def run(
             #     print("-" * 100)
             dist.barrier()
 
+
+        # one token (one forward pass) will account for two sync latencies that should be added
+        # 1. input_layer_norm, attention
+        # 2. post_attention_layernorm, moeblock
+        # so we need to multiply the max_tokens by 2 to get the correct dim for all_gather
+        model.timer.all_gather(
+            eval_nItrs, 
+            max_tokens*2,
+            group=model.model.tp_group
+        )
+
         if LOCAL_RANK == 0:
             total_prefill_tokens = sum(prefill_tokens)
             total_decode_tokens = sum(decode_tokens)
@@ -198,6 +210,8 @@ def run(
                 f"avg. prefill throughput: {total_prefill_tokens / total_prefill_time:.2f} tokens/s, avg. decode throughtput: {(total_decode_tokens / total_decode_time):.2f} tokens/s"
             )
             print("-" * 100)
+            model.timer.get_mixtral_sync_latency()
+            print("=" * 100)
         dist.barrier()
 
     elif mode == "nsys_profile":
