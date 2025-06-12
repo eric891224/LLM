@@ -846,8 +846,6 @@ class MixtralModel(MixtralPreTrainedModel):
             if output_router_logits:
                 all_router_logits += (layer_outputs[-1],)
 
-            timer.flush_buffer()
-
         if self.pipeline_rank < self.num_pipeline_ranks - 1:
             if self.tp_rank == self.num_tp_ranks - 1:
                 dist.batch_isend_irecv(
