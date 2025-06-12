@@ -109,8 +109,9 @@ fi
 if [ $mode = "measure" ]; then
   # for N in 1
   # do
-  $CMD --batch_size $N >> $output_folder/$output_file
+  #  $CMD --batch_size $N >> $output_folder/$output_file
   # done
+  $CMD --batch_size 1 >> $output_folder/$output_file
 
 elif [ $mode = "nsys_profile" ]; then
   nsys profile --capture-range=cudaProfilerApi --capture-range-end=stop --sample=none \
