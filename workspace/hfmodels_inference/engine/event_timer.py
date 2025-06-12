@@ -200,16 +200,12 @@ class CrossNodeEventTimerV2:
         return with shape of (#devices, #batches, 1, #layers) for prefill (out_p)\n
         return with shape of (#devices, #batches, #tokens, #layers) for decode (out_d)
         '''
-        # print("prefill",torch.tensor(self.records[f"{self.world_rank}_p"]).shape)
-        # print(len(self.records[f"{self.world_rank}_d"]))
-        # for i in self.records[f"{self.world_rank}_d"]:
-        #     print(len(i))
-        # print("decode",self.records[f"{self.world_rank}_d"])
-        # print("decode",torch.tensor(self.records[f"{self.world_rank}_d"]).shape)
-
         # for mixtral, there are two communications for each layer, so we need to multiply num_layers by 2
         self.out_p = torch.zeros((self.world_size, num_batches, 1, num_layers), device=self.device)
         self.out_d = torch.zeros((self.world_size, num_batches, max_tokens, num_layers), device=self.device)
+
+        assert self.out_p.shape[1:] == self.records[f"{self.world_rank}_p"].shape, "Shape mismatch for prefill records"
+        assert self.out_d.shape[1:] == self.records[f"{self.world_rank}_d"].shape, "Shape mismatch for decode records"
 
         dist.all_gather_into_tensor(self.out_p, torch.tensor(self.records[f"{self.world_rank}_p"], device=self.device), group)
         dist.all_gather_into_tensor(self.out_d, torch.tensor(self.records[f"{self.world_rank}_d"], device=self.device), group)
@@ -258,3 +254,7 @@ class CrossNodeEventTimerV2:
         '''
         self.out_p = self.out_p.mean()
         self.out_d = self.out_d.mean()
+
+        print("Sync Latency Per Layer (ms)")
+        print("Prefill: ", self.out_p.item())
+        print("Decode: ", self.out_d.item())

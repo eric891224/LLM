@@ -21,7 +21,7 @@ from .transformer_layers import (
 if is_flash_attn_2_available():
     from transformers.modeling_flash_attention_utils import _flash_attention_forward
 
-from event_timer import CrossNodeEventTimer
+from event_timer import CrossNodeEventTimerV2
 
 
 class ColumnParallelLinear(nn.Linear):
@@ -109,7 +109,7 @@ class MixtralAttentionTP(nn.Module):
         config: MixtralConfig,
         layer_idx: Optional[int] = None,
         tp_group: Optional[dist.distributed_c10d.ProcessGroup] = None,
-        timer: CrossNodeEventTimer = None
+        timer: CrossNodeEventTimerV2 = None
     ):
         super().__init__()
         self.config = config
@@ -506,7 +506,7 @@ class MixtralSparseMoeBlockTP(nn.Module):
     and memory on padding.
     """
 
-    def __init__(self, config, tp_group, timer: CrossNodeEventTimer):
+    def __init__(self, config, tp_group, timer: CrossNodeEventTimerV2):
         super().__init__()
         self.hidden_dim = config.hidden_size
         self.ffn_dim = config.intermediate_size
@@ -636,7 +636,7 @@ class MixtralDecoderLayerTP(nn.Module):
         config: MixtralConfig,
         layer_idx: int,
         tp_group: dist.distributed_c10d.ProcessGroup,
-        timer: CrossNodeEventTimer
+        timer: CrossNodeEventTimerV2
     ):
         super().__init__()
         self.hidden_size = config.hidden_size

@@ -121,6 +121,7 @@ def measure_generate(
                 dist.barrier()
                 t1 = time.time()
 
+            # per forward pass, flush the buffer that contains sync latencies for each layers
             model.timer.flush_buffer(isPrefill)
             
             next_token_ids = sample(

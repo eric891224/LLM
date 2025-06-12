@@ -183,14 +183,16 @@ def run(
             #     print("-" * 100)
             dist.barrier()
 
-
+        # def all_gather(self, num_batches, max_tokens, num_layers, group=None):
         # one token (one forward pass) will account for two sync latencies that should be added
         # 1. input_layer_norm, attention
         # 2. post_attention_layernorm, moeblock
-        # so we need to multiply the max_tokens by 2 to get the correct dim for all_gather
+        # so we need to multiply the num_layers by 2 to get the correct dim for all_gather
+        # Note that in the future, we could add another abstraction layer -- num_syncs per layer -- to account for the factor in this scenario
         model.timer.all_gather(
             eval_nItrs, 
-            max_tokens*2,
+            max_tokens,
+            model.model.config.num_hidden_layers * 2,
             group=model.model.tp_group
         )
 
