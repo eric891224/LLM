@@ -87,7 +87,7 @@ CMD="torchrun \
     --node-rank=$node_rank \
     --master-addr=$master_addr \
     --master-port=$master_port \
-    --max-restarts=3 \
+    --max-restarts=2 \
     run.py --mode $mode -m $model_path --model_version $model_version "
 if [ ! -z "$eval_nItrs" ]; then
   CMD+="--eval_nItrs $eval_nItrs "
@@ -107,7 +107,7 @@ fi
 
 
 if [ $mode = "measure" ]; then
-  # for N in 1
+  # for N in 1 2 4 8 16 32 64
   # do
   #  $CMD --batch_size $N >> $output_folder/$output_file
   # done
