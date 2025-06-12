@@ -233,11 +233,11 @@ class CrossNodeEventTimerV2:
                 [[7, 7, 8, 9], [8, 8, 9, 8]],
             ])
 
-            a.reshape(*(a.shape[:, -1]), -1, 2).sum(-1)
+            a.reshape(*(a.shape[:-1]), -1, 2).sum(-1)
             >>> tensor([[[3, 7],[4, 7]], [[14, 17], [16, 17]]])
         '''
-        self.out_p = self.out_p.reshape(*(self.out_p.shape[:, -1]), -1, 2).sum(-1)
-        self.out_d = self.out_d.reshape(*(self.out_d.shape[:, -1]), -1, 2).sum(-1)
+        self.out_p = self.out_p.reshape(*(self.out_p.shape[:-1]), -1, 2).sum(-1)
+        self.out_d = self.out_d.reshape(*(self.out_d.shape[:-1]), -1, 2).sum(-1)
 
         # Average sync latencies across all layers, then all tokens, then all batches, and finally all devices
         '''
