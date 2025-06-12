@@ -118,7 +118,7 @@ if is_accelerate_available():
 if is_torchao_available():
     from torchao.quantization import Int4WeightOnlyConfig
 
-from event_timer import CrossNodeEventTimerV2
+from engine.event_timer import CrossNodeEventTimerV2
 
 LOCAL_RANK = int(os.environ["LOCAL_RANK"])
 WORLD_SIZE = int(os.environ["WORLD_SIZE"])
