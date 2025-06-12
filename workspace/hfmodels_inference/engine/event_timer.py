@@ -204,8 +204,8 @@ class CrossNodeEventTimerV2:
         self.out_p = torch.zeros((self.world_size, num_batches, 1, num_layers), device=self.device)
         self.out_d = torch.zeros((self.world_size, num_batches, max_tokens, num_layers), device=self.device)
 
-        assert self.out_p.shape[1:] == self.records[f"{self.world_rank}_p"].shape, "Shape mismatch for prefill records"
-        assert self.out_d.shape[1:] == self.records[f"{self.world_rank}_d"].shape, "Shape mismatch for decode records"
+        assert self.out_p.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_p"]).shape, "Shape mismatch for prefill records"
+        assert self.out_d.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_d"]).shape, "Shape mismatch for decode records"
 
         dist.all_gather_into_tensor(self.out_p, torch.tensor(self.records[f"{self.world_rank}_p"], device=self.device), group)
         dist.all_gather_into_tensor(self.out_d, torch.tensor(self.records[f"{self.world_rank}_d"], device=self.device), group)
