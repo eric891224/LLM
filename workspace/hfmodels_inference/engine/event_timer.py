@@ -194,7 +194,7 @@ class CrossNodeEventTimerV2:
         self.temp = 0
         self.records = {f"{self.world_rank}_p": [], f"{self.world_rank}_d": []}
 
-    def all_gather(self, num_batches, max_tokens, num_layers, batch_size=1, group=None):
+    def all_gather(self, num_batches, max_tokens, num_layers, group=None):
         '''
         gather from all devices to obtain duration of prefill(all tokens) and decode(token-wise) computation\n
         return with shape of (#devices, #batches, 1, #layers) for prefill (out_p)\n
@@ -204,11 +204,11 @@ class CrossNodeEventTimerV2:
         self.out_p = torch.zeros((self.world_size, num_batches, 1, num_layers), device=self.device)
         self.out_d = torch.zeros((self.world_size, num_batches, max_tokens-1, num_layers), device=self.device)
 
-        assert self.out_p.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_p"]).reshape((batch_size, -1, num_layers)).shape, f'Shape mismatch for prefill records, expect {self.out_p.shape[1:]} but got {torch.tensor(self.records[f"{self.world_rank}_p"]).reshape((batch_size, -1, num_layers)).shape}'
-        assert self.out_d.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_d"]).reshape((batch_size, -1, num_layers)).shape, f"Shape mismatch for decode records, expect {self.out_d.shape[1:]} but got {torch.tensor(self.records[f'{self.world_rank}_d']).reshape((batch_size, -1, num_layers)).shape}"
+        assert self.out_p.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_p"]).reshape((num_batches, -1, num_layers)).shape, f'Shape mismatch for prefill records, expect {self.out_p.shape[1:]} but got {torch.tensor(self.records[f"{self.world_rank}_p"]).reshape((num_batches, -1, num_layers)).shape}'
+        assert self.out_d.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_d"]).reshape((num_batches, -1, num_layers)).shape, f"Shape mismatch for decode records, expect {self.out_d.shape[1:]} but got {torch.tensor(self.records[f'{self.world_rank}_d']).reshape((num_batches, -1, num_layers)).shape}"
 
-        dist.all_gather_into_tensor(self.out_p, torch.tensor(self.records[f"{self.world_rank}_p"], device=self.device).reshape((batch_size, -1, num_layers)), group)
-        dist.all_gather_into_tensor(self.out_d, torch.tensor(self.records[f"{self.world_rank}_d"], device=self.device).reshape((batch_size, -1, num_layers)), group)
+        dist.all_gather_into_tensor(self.out_p, torch.tensor(self.records[f"{self.world_rank}_p"], device=self.device).reshape((num_batches, -1, num_layers)), group)
+        dist.all_gather_into_tensor(self.out_d, torch.tensor(self.records[f"{self.world_rank}_d"], device=self.device).reshape((num_batches, -1, num_layers)), group)
 
         return self.out_p, self.out_d
     
