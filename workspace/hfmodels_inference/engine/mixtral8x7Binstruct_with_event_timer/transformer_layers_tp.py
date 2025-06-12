@@ -489,7 +489,13 @@ class MixtralSdpaAttentionTP(MixtralAttentionTP):
 
         attn_output = self.o_proj(attn_output)
 
+        self.timer.record_end()
+        self.timer.acc_elapsed_time()
+        self.timer.record_elapsed_time()
+
         dist.all_reduce(attn_output, group=self.tp_group)
+
+        self.timer.record_start()
 
         return attn_output, None, past_key_value
 

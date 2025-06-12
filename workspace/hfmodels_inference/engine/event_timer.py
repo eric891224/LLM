@@ -202,7 +202,7 @@ class CrossNodeEventTimerV2:
         '''
         # for mixtral, there are two communications for each layer, so we need to multiply num_layers by 2
         self.out_p = torch.zeros((self.world_size, num_batches, 1, num_layers), device=self.device)
-        self.out_d = torch.zeros((self.world_size, num_batches, max_tokens, num_layers), device=self.device)
+        self.out_d = torch.zeros((self.world_size, num_batches, max_tokens-1, num_layers), device=self.device)
 
         assert self.out_p.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_p"]).shape, f'Shape mismatch for prefill records, expect {self.out_p.shape[1:]} but got {torch.tensor(self.records[f"{self.world_rank}_p"]).shape}, temp(out_d): {torch.tensor(self.records[f"{self.world_rank}_d"]).shape}'
         assert self.out_d.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_d"]).shape, f"Shape mismatch for decode records, expect {self.out_d.shape[1:]} but got {torch.tensor(self.records[f'{self.world_rank}_d']).shape}"
