@@ -182,7 +182,6 @@ def run(
             #     )
             #     print("-" * 100)
             model.timer.acc_elapsed_time() # v3
-            print(model.timer.records)
             dist.barrier()
 
         # def all_gather(self, num_batches, max_tokens, num_layers, group=None):
