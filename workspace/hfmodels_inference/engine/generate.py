@@ -122,7 +122,7 @@ def measure_generate(
                 t1 = time.time()
 
             # per forward pass, flush the buffer that contains sync latencies for each layers
-            model.timer.flush_buffer(isPrefill)
+            # model.timer.flush_buffer(isPrefill) # v2
             
             next_token_ids = sample(
                 outputs.logits[:, -1:], temperature=temperature, top_p=top_p

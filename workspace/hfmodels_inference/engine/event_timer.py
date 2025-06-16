@@ -258,3 +258,134 @@ class CrossNodeEventTimerV2:
         print("Sync Latency Per Layer (ms)")
         print("Prefill: ", self.out_p.item())
         print("Decode: ", self.out_d.item())
+
+
+
+class CrossNodeEventTimerV3:
+    def __init__(self, local_rank, world_size, world_rank, num_layers=32, num_intra_layer_comps=2, max_tokens=128):
+        self.local_rank = local_rank
+        self.world_size = world_size
+        self.world_rank = world_rank
+        self.device = torch.device(f"cuda:{local_rank}")
+
+        self.num_layers = num_layers
+        self.num_intra_layer_comps = num_intra_layer_comps
+        self.max_tokens = max_tokens
+
+        # self.start_event = torch.cuda.Event(enable_timing=True)
+        # self.end_event = torch.cuda.Event(enable_timing=True)
+        self.events = [torch.cuda.Event(enable_timing=True)] * (num_layers * num_intra_layer_comps * 2) * max_tokens 
+        self.cur_event_idx = 0
+
+        self.records = {f"{world_rank}_p": [], f"{world_rank}_d": []}
+        # self.buff = []
+        # self.temp = 0
+        self.temps = []
+
+        self.out_p = None
+        self.out_d = None
+
+    def record_start(self, device: torch.device = None):
+        self._record_event(device=device)
+    
+    def record_end(self, device: torch.device = None):
+        self._record_event(device=device)
+
+    def _record_event(self, device: torch.device = None):
+        device = self.device if device == None else device
+        self.events[self.cur_event_idx].record(torch.cuda.current_stream(device))
+        self.cur_event_idx += 1
+
+    # in this version, we accumulate elapsed times offline, i.e. after all tokens are generated
+    def acc_elapsed_time(self, need_synchronize=True):
+        '''accumulated elapsed times and record them'''
+        if need_synchronize: 
+            torch.cuda.synchronize(self.device)
+
+        for i in range(self.max_tokens):
+            isPrefill = i == 0
+
+            for j in range(0, self.num_layers * self.num_intra_layer_comps * 2, 2):
+                start_idx = (i * self.num_layers * self.num_intra_layer_comps * 2 + j)
+                end_idx = start_idx + 1
+                duration = self.events[start_idx].elapsed_time(self.events[end_idx])
+                self.temps.append(duration)
+
+            if isPrefill:
+                self.records[f"{self.world_rank}_p"].append([self.temps])
+                self.records[f"{self.world_rank}_d"].append([])
+            else:
+                self.records[f"{self.world_rank}_d"][-1].append(self.temps)
+            self.temps = [] 
+
+        self.cur_event_idx = 0 # reset for next round of recording
+
+    def reset(self):
+        self.cur_event_idx = 0
+        self.temps = []
+        self.records = {f"{self.world_rank}_p": [], f"{self.world_rank}_d": []}
+
+    def all_gather(self, num_batches, max_tokens, num_layers, group=None):
+        '''
+        gather from all devices to obtain duration of prefill(all tokens) and decode(token-wise) computation\n
+        return with shape of (#devices, #batches, 1, #layers) for prefill (out_p)\n
+        return with shape of (#devices, #batches, #tokens, #layers) for decode (out_d)
+        '''
+        # for mixtral, there are two communications for each layer, so we need to multiply num_layers by 2
+        self.out_p = torch.zeros((self.world_size, num_batches, 1, num_layers), device=self.device)
+        self.out_d = torch.zeros((self.world_size, num_batches, max_tokens-1, num_layers), device=self.device)
+
+        assert self.out_p.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_p"]).reshape((num_batches, -1, num_layers)).shape, f'Shape mismatch for prefill records, expect {self.out_p.shape[1:]} but got {torch.tensor(self.records[f"{self.world_rank}_p"]).reshape((num_batches, -1, num_layers)).shape}'
+        assert self.out_d.shape[1:] == torch.tensor(self.records[f"{self.world_rank}_d"]).reshape((num_batches, -1, num_layers)).shape, f"Shape mismatch for decode records, expect {self.out_d.shape[1:]} but got {torch.tensor(self.records[f'{self.world_rank}_d']).reshape((num_batches, -1, num_layers)).shape}"
+
+        dist.all_gather_into_tensor(self.out_p, torch.tensor(self.records[f"{self.world_rank}_p"], device=self.device).reshape((num_batches, -1, num_layers)), group)
+        dist.all_gather_into_tensor(self.out_d, torch.tensor(self.records[f"{self.world_rank}_d"], device=self.device).reshape((num_batches, -1, num_layers)), group)
+
+        return self.out_p, self.out_d
+    
+    def get_mixtral_sync_latency(self):
+        """
+        this is tested for mixtral
+        """
+
+        # MAX - MIN across all devices
+        max_p = torch.amax(self.out_p, dim=0)
+        min_p = torch.amin(self.out_p, dim=0)
+        self.out_p = max_p - min_p
+
+        max_d = torch.amax(self.out_d, dim=0)
+        min_d = torch.amin(self.out_d, dim=0)
+        self.out_d = max_d - min_d
+
+        # Merge sync latencies in each layer (since each layer has two communications)
+        '''
+            a = torch.tensor([
+                [[1, 2, 3, 4], [2, 2, 3, 4]],
+                [[7, 7, 8, 9], [8, 8, 9, 8]],
+            ])
+
+            a.reshape(*(a.shape[:-1]), -1, 2).sum(-1)
+            >>> tensor([[[3, 7],[4, 7]], [[14, 17], [16, 17]]])
+        '''
+        self.out_p = self.out_p.reshape(*(self.out_p.shape[:-1]), -1, 2).sum(-1)
+        self.out_d = self.out_d.reshape(*(self.out_d.shape[:-1]), -1, 2).sum(-1)
+
+        # Average sync latencies across all layers, then all tokens, then all batches, and finally all devices
+        '''
+            # x:  (D devices, B batches, T tokens, L layers)
+            # shape = (D, B, T, L)
+
+            x1 = x.mean(dim=-1, keepdim=False)      # ⟶ (D, B, T)      ← average over layers
+            x2 = x1.mean(dim=-1, keepdim=False)     # ⟶ (D, B)         ← average over tokens
+            x3 = x2.mean(dim=-1, keepdim=False)     # ⟶ (D,)           ← average over batches
+            result = x3.mean(dim=0,  keepdim=False) # ⟶ scalar         ← average over devices
+
+            # but if you only want the final result, it is equivalent to:
+            result = x.mean()
+        '''
+        self.out_p = self.out_p.mean()
+        self.out_d = self.out_d.mean()
+
+        print("Sync Latency Per Layer (ms)")
+        print("Prefill: ", self.out_p.item())
+        print("Decode: ", self.out_d.item())

@@ -181,6 +181,7 @@ def run(
             #         f"prefill throughput: {n_prefill_tokens / prefill_time:.2f} tokens/s, decode throughtput: {(n_decode_tokens / decode_time):.2f} tokens/s"
             #     )
             #     print("-" * 100)
+            model.timer.acc_elapsed_time() # v3
             dist.barrier()
 
         # def all_gather(self, num_batches, max_tokens, num_layers, group=None):
