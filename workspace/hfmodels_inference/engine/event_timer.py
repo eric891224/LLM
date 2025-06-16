@@ -274,7 +274,10 @@ class CrossNodeEventTimerV3:
 
         # self.start_event = torch.cuda.Event(enable_timing=True)
         # self.end_event = torch.cuda.Event(enable_timing=True)
-        self.events = [torch.cuda.Event(enable_timing=True)] * (num_layers * num_intra_layer_comps * 2) * max_tokens 
+        # self.events = [torch.cuda.Event(enable_timing=True)] * (num_layers * num_intra_layer_comps * 2) * max_tokens 
+        self.events = []
+        for i in range((num_layers * num_intra_layer_comps * 2) * max_tokens):
+            self.events.append(torch.cuda.Event(enable_timing=True))
         self.cur_event_idx = 0
 
         self.records = {f"{world_rank}_p": [], f"{world_rank}_d": []}
