@@ -112,13 +112,13 @@ if [ $mode = "measure" ]; then
   #   $CMD --batch_size $N >> $output_folder/$output_file
   # done
 
-  $CMD --batch_size 1 >> $output_folder/$output_file
+  # $CMD --batch_size 1 >> $output_folder/$output_file
 
-  # nsys profile --capture-range=cudaProfilerApi --capture-range-end=stop --sample=none \
-  #   --cuda-memory-usage=true \
-  #   --python-backtrace=cuda --trace-fork-before-exec=true \
-  #   -f true -o $output_folder/nsys_mixtral_bs1 \
-  #   $CMD --batch_size 1 >> $output_folder/$output_file
+  nsys profile --sample=none \
+    --cuda-memory-usage=true \
+    --python-backtrace=cuda --trace-fork-before-exec=true \
+    -f true -o $output_folder/nsys_mixtral_bs1 \
+    $CMD --batch_size 1 >> $output_folder/$output_file
 
 elif [ $mode = "nsys_profile" ]; then
   nsys profile --capture-range=cudaProfilerApi --capture-range-end=stop --sample=none \

@@ -105,8 +105,6 @@ def measure_generate(
     inputs = tokenizer(prompts, padding=True, return_tensors="pt").to(model.device)
     n_prefill_tokens = inputs.input_ids.numel()
 
-    torch.cuda.cudart().cudaProfilerStart()
-
     if use_cache:
         past_key_values = DynamicCache()
         # past_key_values = StaticCache(
@@ -156,7 +154,6 @@ def measure_generate(
             inputs = {"input_ids": generated_ids, "attention_mask": attention_mask}
 
     dist.barrier()
-    torch.cuda.cudart().cudaProfilerStop()
     t2 = time.time()
     n_decode_tokens = B * (max_new_tokens - 1)
     return (t1 - t0, t2 - t1, n_prefill_tokens, n_decode_tokens)
