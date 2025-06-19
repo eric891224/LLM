@@ -140,6 +140,7 @@ def run(
                 )
         dist.barrier()
         model.timer.reset()
+        torch.cuda.cudart().cudaProfilerStart()
 
         prefill_ts, decode_ts, prefill_tokens, decode_tokens = (
             [],
@@ -183,6 +184,8 @@ def run(
             #     print("-" * 100)
             model.timer.acc_elapsed_time() # v3
             dist.barrier()
+
+        torch.cuda.cudart().cudaProfilerStop()
 
         # def all_gather(self, num_batches, max_tokens, num_layers, group=None):
         # one token (one forward pass) will account for two sync latencies that should be added
